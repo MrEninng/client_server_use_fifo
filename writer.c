@@ -8,7 +8,8 @@
 #include <sys/wait.h>
 #include <string.h>
 
-#define BUFF_SIZE 1024
+#include "address.h"
+
 #define		R  0	// Read/stdin
 #define		W  1 	// Write/stdout
 
@@ -22,7 +23,6 @@ int main(int argc, char **argv)
 {
 	puts("I'm WRITER");
 	int fd;
-	const char *myFifo = "/tmp/pubfifo.fifo";
 	char myFifo2[BUFF_SIZE];
 	
 	char buff[BUFF_SIZE];	
@@ -31,10 +31,10 @@ int main(int argc, char **argv)
 	while (pswdFlag) {
 		puts("Input password");
 		fgets(buff, BUFF_SIZE, stdin);
-		int fd2 = open(myFifo, O_WRONLY);
+		int fd2 = open(PUB_FIFO, O_WRONLY);
 		write(fd2, buff, BUFF_SIZE);
 		close(fd2);
-		fd2 = open(myFifo, O_RDONLY);
+		fd2 = open(PUB_FIFO, O_RDONLY);
 		int res = read(fd2, buff, BUFF_SIZE);
 			if (res < 0) {
 				perror("Closed fifo2");
@@ -46,7 +46,7 @@ int main(int argc, char **argv)
 			printf("Not correct password. Try again.\n");
 		} else {
 			printf("Password correct. Make input.\n");
-			int fd = open(myFifo, O_RDONLY);
+			int fd = open(PUB_FIFO, O_RDONLY);
 	//		char b[BUFF_SIZE];
 			int res = read(fd, myFifo2, BUFF_SIZE);
 //			printf("res %d b = %s", res, myFifo2); 
@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 		}
 	}
 	while (fgets(buff, BUFF_SIZE, stdin) != NULL) {
-		fd = open(myFifo, O_WRONLY);
+		fd = open(myFifo2, O_WRONLY);
 		int p[2], q[2];
 		pipe(p);
 		pipe(q);
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 				
 	} 
 	//write(fd, buff, sizeof(buff));
-	unlink(myFifo);
+	unlink(PUB_FIFO);
 	unlink(myFifo2);
 	return 0;
 }

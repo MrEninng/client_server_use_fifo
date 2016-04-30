@@ -8,30 +8,27 @@
 #include <sys/wait.h>
 #include <string.h>
 
-#define BUFF_SIZE 1024
+#include "address.h"
+
 #define		R  0	// Read/stdin
 #define		W  1 	// Write/stdout
 
 
-void reader(int q[], char *buff);
+void reader(int q[], char *buff, char *privFifo);
 void run_pr1(int p[], int q[]);
 void write_into_p(int p[], const char * buff);
 
-
-const char *myFifo = "/tmp/pubfifo.fifo";
-char myFifo2[BUFF_SIZE] = "/tmp/myfifo2.fifo";
-
 int main(int argc, char **argv)
 {
+	char myFifo2[BUFF_SIZE] = "/tmp/myfifo2.fifo";
+
 	puts("I'm SERVER");
 	
 	int fifo_fd;	
-	//const char *myFifo = "/tmp/pubfifo.fifo";
-//	const char *myFifo2 = "/tmp/myfifo2.fifo";
-	unlink(myFifo);
+	unlink(PUB_FIFO);
 	unlink(myFifo2);
 	
-	if (mkfifo(myFifo, 0666) < 0) {
+	if (mkfifo(PUB_FIFO, 0666) < 0) {
 		perror("mkfifo failed");
 		exit(errno);
 	}
@@ -51,7 +48,7 @@ int main(int argc, char **argv)
 	int clientFlag = 1;
 	while(clientFlag) {
 		
-		int fd2 = open(myFifo, O_RDONLY);
+		int fd2 = open(PUB_FIFO, O_RDONLY);
 		res = read(fd2, passwordBuff, BUFF_SIZE);
 		if (res < 0 ) {
 			printf("????");
@@ -60,18 +57,18 @@ int main(int argc, char **argv)
 		res  = strcmp(passwordBuff, pass);
 		if ( res != 0) {
 			puts("Client input not correct pswd. \nWaiting client...");
-			int fd3 = open(myFifo, O_WRONLY);
+			int fd3 = open(PUB_FIFO, O_WRONLY);
 			write(fd3, "1\0",BUFF_SIZE);
 			close(fd3);
 		} else {
 			puts("Client connected");
 			clientFlag = 0;
-			int fd3 = open(myFifo, O_WRONLY);
+			int fd3 = open(PUB_FIFO, O_WRONLY);
 			write(fd3, "0\0",BUFF_SIZE);
 			close(fd3);
 			puts("Send fifo chanel address");
 			sleep(1); // NEED TO SYNC WITH CLIENT
-			int fd = open(myFifo, O_WRONLY);
+			int fd = open(PUB_FIFO, O_WRONLY);
 			write(fd, myFifo2, sizeof(myFifo2));
 			close(fd);
 		}
@@ -79,7 +76,7 @@ int main(int argc, char **argv)
 	char buff[BUFF_SIZE];
 
 	while (1) {
-		fifo_fd = open(myFifo, O_RDONLY);
+		fifo_fd = open(myFifo2, O_RDONLY);
 		int res = read(fifo_fd, buff, BUFF_SIZE);
 		//puts(buff);
 		if (res < 0) {
@@ -94,7 +91,7 @@ int main(int argc, char **argv)
 		close(p[W]);
 		run_pr1(p, q);
 		close(p[R]);
-		reader(q, buff);
+		reader(q, buff, myFifo2);
 		//puts(buff);
 		close(q[R]);
 		close(q[W]);
@@ -108,7 +105,7 @@ int main(int argc, char **argv)
 //		close(fd);
 	}  
 	unlink(myFifo2);
-	unlink(myFifo);
+	unlink(PUB_FIFO);
 	return 0;
 }
 
@@ -166,7 +163,7 @@ void write_into_p(int p[], const char * buff)
 	}
 }
 
-void reader(int q[], char* buff)
+void reader(int q[], char* buff, char* privFifo)
 {
 	int res;
 	switch (res = fork()) {
@@ -178,7 +175,7 @@ void reader(int q[], char* buff)
 			
 			fgets(buff, BUFF_SIZE, stdin);
 				//const char *myFifo2 = "/tmp/myfifo2.fifo";
-			int fd = open(myFifo2, O_WRONLY);
+			int fd = open(privFifo, O_WRONLY);
 			write(fd, buff, BUFF_SIZE);
 			close(fd);
 			exit(EXIT_SUCCESS);
